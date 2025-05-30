@@ -1,0 +1,487 @@
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import * as FileSystem from 'expo-file-system';
+import { Image as ExpoImage } from 'expo-image';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, Dimensions, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+
+import { API_ENDPOINTS } from '@/app/config';
+import { useImage } from '@/app/contexts/ImageContext';
+import { ThemedText } from '@/components/ThemedText';
+import { ThemedView } from '@/components/ThemedView';
+import { ProfileService } from '@/services/ProfileService';
+import { GeneratedImage, TextData } from '@/types/Profile';
+
+const { width: screenWidth } = Dimensions.get('window');
+
+// Simple text overlay interface
+interface TextOverlay {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  fontSize: number;
+  color: string;
+}
+
+export default function EditScreen() {
+  const params = useLocalSearchParams();
+  const router = useRouter();
+  const colorScheme = useColorScheme() ?? 'light';
+  const colors = Colors[colorScheme];
+  const { setImageUrl, setPublicImageUrl } = useImage();
+
+  // State management
+  const [isLoading, setIsLoading] = useState(false);
+  const [processedImage, setProcessedImage] = useState<string | null>(null);
+  const [showTextInput, setShowTextInput] = useState(false);
+  const [textInput, setTextInput] = useState('');
+  const [textColor, setTextColor] = useState('#FFFFFF');
+  const [fontSize, setFontSize] = useState(24);
+  const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([]);
+  const [selectedTextIndex, setSelectedTextIndex] = useState<number | null>(null);
+
+  // Animation values
+  const scale = useSharedValue(1);
+  const rotation = useSharedValue(0);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+
+  // Gesture handlers
+  const composed = Gesture.Simultaneous(
+    Gesture.Pinch().onUpdate((e) => { scale.value = e.scale; }),
+    Gesture.Rotation().onUpdate((e) => { rotation.value = e.rotation; }),
+    Gesture.Pan().onUpdate((e) => { 
+      translateX.value = e.translationX;
+      translateY.value = e.translationY;
+    })
+  );
+
+  // Helper function to get image URL
+  const getImageUrl = () => {
+    const url = processedImage || params.imageUrl;
+    return Array.isArray(url) ? url[0] : url;
+  };
+
+  // Add text handler
+  const handleAddText = () => {
+    setSelectedTextIndex(null);
+    setTextInput('');
+    setShowTextInput(true);
+  };
+
+  // Save text handler
+  const handleSaveText = () => {
+    if (!textInput.trim()) return;
+    
+    if (selectedTextIndex !== null) {
+      // Edit existing text
+      const updatedOverlays = [...textOverlays];
+      updatedOverlays[selectedTextIndex] = {
+        ...updatedOverlays[selectedTextIndex],
+        text: textInput,
+        color: textColor,
+        fontSize: fontSize
+      };
+      setTextOverlays(updatedOverlays);
+    } else {
+      // Add new text
+      const newTextOverlay: TextOverlay = {
+        id: `text_${Date.now()}`,
+        text: textInput,
+        x: 50,
+        y: 50,
+        fontSize: fontSize,
+        color: textColor
+      };
+      setTextOverlays([...textOverlays, newTextOverlay]);
+    }
+    
+    setShowTextInput(false);
+  };
+
+  // Edit text handler
+  const handleEditText = (index: number) => {
+    setSelectedTextIndex(index);
+    setTextInput(textOverlays[index].text);
+    setTextColor(textOverlays[index].color);
+    setFontSize(textOverlays[index].fontSize);
+    setShowTextInput(true);
+  };
+
+  // Move text handler
+  const handleMoveText = (index: number, newX: number, newY: number) => {
+    const updatedOverlays = [...textOverlays];
+    updatedOverlays[index] = {
+      ...updatedOverlays[index],
+      x: newX,
+      y: newY
+    };
+    setTextOverlays(updatedOverlays);
+  };
+
+  // Save image handler
+  const handleSave = async () => {
+    try {
+      setIsLoading(true);
+      const currentImageUrl = getImageUrl();
+      
+      // Prepare image data if it's a local file
+      let imageData;
+      if (currentImageUrl.startsWith('file://')) {
+        const response = await fetch(currentImageUrl);
+        const blob = await response.blob();
+        imageData = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      // Send to compose image endpoint
+      const response = await fetch(API_ENDPOINTS.COMPOSE_IMAGE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl: currentImageUrl,
+          imageData: imageData,
+          textOverlays: textOverlays.map(overlay => ({
+            text: overlay.text,
+            x: overlay.x,
+            y: overlay.y,
+            style: {
+              fontFamily: 'Arial',
+              fontSize: overlay.fontSize,
+              color: overlay.color
+            }
+          })),
+          scale: scale.value,
+          rotation: rotation.value,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.composedImageUrl) {
+        // Download the composed image
+        const fileName = `composed-image-${Date.now()}.png`;
+        const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+        
+        const downloadResult = await FileSystem.downloadAsync(
+          data.composedImageUrl,
+          fileUri
+        );
+
+        if (downloadResult.status === 200) {
+          // Save to user profile if logged in
+          const userId = await SecureStore.getItemAsync('userId');
+          if (userId) {
+            // Save the composed image
+            const composedImage: GeneratedImage = {
+              id: `img_${Date.now()}`,
+              url: data.composedImageUrl,
+              createdAt: new Date(),
+              prompt: 'Edited Image'
+            };
+            await ProfileService.saveEditedImage(userId, composedImage);
+            
+            // Save each text overlay
+            for (const overlay of textOverlays) {
+              const textData: TextData = {
+                id: overlay.id,
+                content: overlay.text,
+                createdAt: new Date(),
+                fontFamily: 'Arial',
+                fontSize: overlay.fontSize,
+                color: overlay.color,
+                position: {
+                  x: overlay.x,
+                  y: overlay.y
+                }
+              };
+              await ProfileService.saveTextData(userId, textData);
+            }
+          }
+          
+          // Update context and navigate
+          setImageUrl(data.composedImageUrl);
+          setPublicImageUrl(data.composedImageUrl);
+          router.push({
+            pathname: '/(tabs)/products',
+            params: {
+              publicImageUrl: data.composedImageUrl,
+              productId: params.productId,
+              variantId: params.variantId,
+            }
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error saving image:', error);
+      Alert.alert('Error', 'Failed to save image. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <ThemedView style={styles.container}>
+      <GestureHandlerRootView style={styles.gestureContainer}>
+        <GestureDetector gesture={composed}>
+          <Animated.View style={[
+            styles.imageContainer,
+            useAnimatedStyle(() => ({
+              transform: [
+                { scale: scale.value },
+                { rotate: `${rotation.value}rad` },
+                { translateX: translateX.value },
+                { translateY: translateY.value },
+              ],
+            })),
+          ]}>
+            <ExpoImage
+              source={{ uri: getImageUrl() }}
+              style={styles.image}
+              contentFit="contain"
+            />
+            
+            {/* Text Overlays */}
+            {textOverlays.map((overlay, index) => (
+              <TouchableOpacity
+                key={overlay.id}
+                style={[
+                  styles.textOverlay,
+                  {
+                    left: overlay.x,
+                    top: overlay.y,
+                    borderWidth: selectedTextIndex === index ? 1 : 0,
+                    borderColor: selectedTextIndex === index ? colors.accent1 : 'transparent',
+                  }
+                ]}
+                onPress={() => handleEditText(index)}
+                onLongPress={() => {
+                  const newOverlays = [...textOverlays];
+                  newOverlays.splice(index, 1);
+                  setTextOverlays(newOverlays);
+                }}
+              >
+                <Text style={{
+                  fontSize: overlay.fontSize,
+                  color: overlay.color,
+                }}>
+                  {overlay.text}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
+        </GestureDetector>
+      </GestureHandlerRootView>
+
+      {/* Text Input Popup */}
+      {showTextInput && (
+        <View style={styles.textInputContainer}>
+          <TextInput
+            value={textInput}
+            onChangeText={setTextInput}
+            style={styles.textInput}
+            placeholder="Enter text"
+            placeholderTextColor="#888"
+            autoFocus
+          />
+          
+          <View style={styles.textControls}>
+            <View style={styles.colorOptions}>
+              {['#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00'].map(color => (
+                <TouchableOpacity
+                  key={color}
+                  style={[
+                    styles.colorOption,
+                    { backgroundColor: color },
+                    textColor === color && styles.selectedColor
+                  ]}
+                  onPress={() => setTextColor(color)}
+                />
+              ))}
+            </View>
+            
+            <View style={styles.sizeControls}>
+              <TouchableOpacity
+                style={styles.sizeButton}
+                onPress={() => setFontSize(Math.max(12, fontSize - 2))}
+              >
+                <Text style={styles.sizeButtonText}>-</Text>
+              </TouchableOpacity>
+              
+              <Text style={styles.sizeText}>{fontSize}</Text>
+              
+              <TouchableOpacity
+                style={styles.sizeButton}
+                onPress={() => setFontSize(Math.min(48, fontSize + 2))}
+              >
+                <Text style={styles.sizeButtonText}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          
+          <View style={styles.textActionButtons}>
+            <TouchableOpacity
+              style={[styles.textButton, { backgroundColor: colors.accent2 }]}
+              onPress={() => setShowTextInput(false)}
+            >
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.textButton, { backgroundColor: colors.accent1 }]}
+              onPress={handleSaveText}
+            >
+              <Text style={styles.buttonText}>Add</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* Bottom Buttons */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: colors.accent3 }]}
+          onPress={handleAddText}
+          disabled={isLoading || showTextInput}
+        >
+          <ThemedText style={styles.buttonText}>Add Text</ThemedText>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: colors.accent1 }]}
+          onPress={handleSave}
+          disabled={isLoading || showTextInput}
+        >
+          <ThemedText style={styles.buttonText}>
+            {isLoading ? 'Saving...' : 'Save'}
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+  },
+  gestureContainer: {
+    flex: 1,
+  },
+  imageContainer: {
+    width: screenWidth - 32,
+    height: screenWidth - 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  textOverlay: {
+    position: 'absolute',
+    padding: 8,
+    backgroundColor: 'transparent',
+    borderRadius: 4,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  button: {
+    flex: 1,
+    marginHorizontal: 4,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  textInputContainer: {
+    position: 'absolute',
+    bottom: 80,
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(30,30,40,0.95)',
+    borderRadius: 12,
+    padding: 16,
+  },
+  textInput: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    color: '#FFFFFF',
+    marginBottom: 12,
+  },
+  textControls: {
+    marginBottom: 12,
+  },
+  colorOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 12,
+  },
+  colorOption: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: '#ccc',
+  },
+  selectedColor: {
+    borderColor: '#fff',
+    borderWidth: 3,
+  },
+  sizeControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sizeButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sizeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  sizeText: {
+    color: '#FFFFFF',
+    marginHorizontal: 12,
+    fontSize: 16,
+  },
+  textActionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  textButton: {
+    flex: 1,
+    marginHorizontal: 4,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+});
