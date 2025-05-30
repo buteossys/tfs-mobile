@@ -6,6 +6,10 @@
 
 TFS Mobile is a cutting-edge mobile application that empowers users to create custom products using AI-generated designs. Built with React Native and Expo, this app provides a seamless experience for designing, customizing, and ordering personalized products.
 
+## Estimated Release Date
+
+June 1, 2025
+
 ## Features
 
 ### 🎨 AI-Powered Design Generation
