@@ -1,91 +1,79 @@
-TFS Mobile - AI-Powered Custom Product Design App
-TFS Mobile Banner
+# TFS Mobile - AI-Powered Custom Product Design App
 
-Overview
+![TFS Mobile Banner](./assets/images/tfs-banner.png)
+
+## Overview
+
 TFS Mobile is a cutting-edge mobile application that empowers users to create custom products using AI-generated designs. Built with React Native and Expo, this app provides a seamless experience for designing, customizing, and ordering personalized products.
 
-Features
-🎨 AI-Powered Design Generation
-Create unique designs using advanced AI technology
+## Features
 
-Generate custom images from text prompts
+### 🎨 AI-Powered Design Generation
+- Create unique designs using advanced AI technology
+- Generate custom images from text prompts
+- Upload and edit your own images
 
-Upload and edit your own images
+### 👕 Custom Product Creation
+- Apply your designs to a variety of high-quality products
+- Preview your designs on different product types
+- Customize colors, sizes, and other product attributes
 
-👕 Custom Product Creation
-Apply your designs to a variety of high-quality products
+### 🛒 Seamless Shopping Experience
+- Browse and select from various product options
+- Add items to cart and manage your selections
+- Secure checkout with Stripe payment integration
 
-Preview your designs on different product types
+### 👤 User Profiles
+- Save your generated designs for future use
+- Track your order history
+- Manage your personal information
 
-Customize colors, sizes, and other product attributes
+## Technology Stack
 
-🛒 Seamless Shopping Experience
-Browse and select from various product options
+- **Frontend Framework**: React Native with Expo
+- **Navigation**: Expo Router with file-based routing
+- **UI Components**: Custom themed components with dynamic color schemes
+- **Image Processing**: AI-powered image generation and editing
+- **Payment Processing**: Stripe integration
+- **State Management**: React Context API
+- **Storage**: Expo FileSystem and SecureStore
+- **API Communication**: Axios for RESTful API calls
 
-Add items to cart and manage your selections
+## Getting Started
 
-Secure checkout with Stripe payment integration
+### Prerequisites
 
-👤 User Profiles
-Save your generated designs for future use
+- Node.js (v14 or later)
+- npm or yarn
+- Expo CLI
+- iOS Simulator or Android Emulator (optional)
 
-Track your order history
+### Installation
 
-Manage your personal information
+1. Clone the repository
+   ```bash
+   git clone https://github.com/yourusername/tfs-mobile.git
+   cd tfs-mobile
+   ```
 
-Technology Stack
-Frontend Framework: React Native with Expo
+2. Install dependencies
+   ```bash
+   npm install
+   ```
 
-Navigation: Expo Router with file-based routing
+3. Start the development server
+   ```bash
+   npx expo start
+   ```
 
-UI Components: Custom themed components with dynamic color schemes
+4. Run on your preferred platform
+   - Press `i` to run on iOS simulator
+   - Press `a` to run on Android emulator
+   - Scan the QR code with Expo Go app on your physical device
 
-Image Processing: AI-powered image generation and editing
+## App Structure
 
-Payment Processing: Stripe integration
-
-State Management: React Context API
-
-Storage: Expo FileSystem and SecureStore
-
-API Communication: Axios for RESTful API calls
-
-Getting Started
-
-Prerequisites
-
-Node.js (v14 or later)
-
-npm or yarn
-
-Expo CLI
-
-iOS Simulator or Android Emulator (optional)
-
-Installation
-
-Clone the repository
-
-git clone https://github.com/yourusername/tfs-mobile.git
-cd tfs-mobile
-
-Install dependencies
-
-npm install
-
-Start the development server
-
-npx expo start
-
-Run on your preferred platform
-
-Press i to run on iOS simulator
-
-Press a to run on Android emulator
-
-Scan the QR code with Expo Go app on your physical device
-
-App Structure
+```
 tfs-mobile/
 ├── app/                  # Main application code with file-based routing
 │   ├── (tabs)/           # Tab-based navigation screens
@@ -98,62 +86,55 @@ tfs-mobile/
 ├── services/             # API and business logic services
 ├── types/                # TypeScript type definitions
 └── utils/                # Utility functions and helpers
+```
 
-Copy
+## Development Workflow
 
-Insert at cursor
-Development Workflow
-Running in Development Mode
+### Running in Development Mode
+
+```bash
 npm start
+```
 
-Copy
+### Building for Production
 
-Insert at cursor
-Building for Production
+```bash
 eas build --platform ios
 eas build --platform android
+```
 
-Copy
+## API Integration
 
-Insert at cursor
-bash
-API Integration
 The app integrates with a custom backend service that provides:
+- AI image generation
+- Background removal
+- Image composition
+- Product mockup creation
+- Order processing
+- Payment handling
 
-AI image generation
+## Screenshots
 
-Background removal
-
-Image composition
-
-Product mockup creation
-
-Order processing
-
-Payment handling
-
-Screenshots
 [Include screenshots of key app screens here]
 
-Contributing
-Fork the repository
+## Contributing
 
-Create your feature branch (git checkout -b feature/amazing-feature)
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-Commit your changes (git commit -m 'Add some amazing feature')
+## License
 
-Push to the branch (git push origin feature/amazing-feature)
-
-Open a Pull Request
-
-License
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-Acknowledgments
-Expo team for the amazing cross-platform development framework
+## Acknowledgments
 
-React Native community for their continuous support and contributions
+- Expo team for the amazing cross-platform development framework
+- React Native community for their continuous support and contributions
+- All contributors who have helped shape this project
 
-All contributors who have helped shape this project
+---
 
 Built with ❤️ using React Native and Expo
