@@ -10,6 +10,8 @@ TFS Mobile is a cutting-edge mobile application that empowers users to create cu
 
 June 1, 2025
 
+Follow us on facebook for updates: [Buteos Systems Facebook](https://www.facebook.com/profile.php?id=61552240290109)
+
 ## Features
 
 ### 🎨 AI-Powered Design Generation
